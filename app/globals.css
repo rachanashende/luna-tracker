@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* Dark mode is toggled via a `.dark` class on <html> (see ThemeProvider),
+   not the OS media query, so the user's explicit choice always wins. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --raw-background: #fdf6f0; /* vanilla */
+  --raw-surface: #ffffff;
+  --raw-card: #fffaf6;
+  --raw-accent: #f7c8d2; /* baby pink */
+  --raw-accent-secondary: #a9cde8; /* baby blue */
+  --raw-highlight: #fbe7b2; /* pale yellow */
+  --raw-foreground: #5a3e36; /* espresso */
+  --raw-heading: #3d2b24; /* dark espresso */
+  --raw-border: #efddd2;
+
+  --raw-tag-green: #aee1d6;
+  --raw-tag-blue: #b8d4f0;
+  --raw-tag-yellow: #fbe7b2;
+  --raw-tag-pink: #f7c8d2;
+}
+
+.dark {
+  --raw-background: #2a1e1a; /* deep espresso */
+  --raw-surface: #33241f;
+  --raw-card: #3d2b24;
+  --raw-accent: #f7c8d2; /* baby pink stays primary accent */
+  --raw-accent-secondary: #a9cde8; /* baby blue secondary accent */
+  --raw-highlight: #fbe7b2;
+  --raw-foreground: #f2e9e4;
+  --raw-heading: #fbeee6;
+  --raw-border: #4a362d;
+
+  --raw-tag-green: #aee1d6;
+  --raw-tag-blue: #b8d4f0;
+  --raw-tag-yellow: #fbe7b2;
+  --raw-tag-pink: #f7c8d2;
+}
+
+@theme inline {
+  --color-background: var(--raw-background);
+  --color-surface: var(--raw-surface);
+  --color-card: var(--raw-card);
+  --color-accent: var(--raw-accent);
+  --color-accent-secondary: var(--raw-accent-secondary);
+  --color-highlight: var(--raw-highlight);
+  --color-foreground: var(--raw-foreground);
+  --color-heading: var(--raw-heading);
+  --color-border: var(--raw-border);
+
+  --color-tag-green: var(--raw-tag-green);
+  --color-tag-blue: var(--raw-tag-blue);
+  --color-tag-yellow: var(--raw-tag-yellow);
+  --color-tag-pink: var(--raw-tag-pink);
+
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-heading);
+}
