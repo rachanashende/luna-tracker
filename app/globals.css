@@ -22,15 +22,15 @@
 }
 
 .dark {
-  --raw-background: #2a1e1a; /* deep espresso */
-  --raw-surface: #33241f;
-  --raw-card: #3d2b24;
+  --raw-background: #1c1c1f; /* cool charcoal, swapped from espresso brown */
+  --raw-surface: #242428;
+  --raw-card: #28282c;
   --raw-accent: #f7c8d2; /* baby pink stays primary accent */
   --raw-accent-secondary: #a9cde8; /* baby blue secondary accent */
   --raw-highlight: #fbe7b2;
-  --raw-foreground: #f2e9e4;
-  --raw-heading: #fbeee6;
-  --raw-border: #4a362d;
+  --raw-foreground: #e8e7ea;
+  --raw-heading: #f6f5f7;
+  --raw-border: #37373c;
 
   --raw-tag-green: #aee1d6;
   --raw-tag-blue: #b8d4f0;
