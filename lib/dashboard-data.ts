@@ -118,3 +118,16 @@ export function getTodayLong(): string {
     day: "numeric",
   }).format(new Date());
 }
+
+// Daily focus-time goal shown on the featured dashboard card. Arbitrary
+// starting point — change freely, or move it into a settings table later.
+export const FOCUS_GOAL_MINUTES = 120;
+
+export function getDaySummary(stats: DashboardStats, eventCount: number): string {
+  const parts: string[] = [];
+  if (eventCount > 0) parts.push(`${eventCount} event${eventCount === 1 ? "" : "s"}`);
+  if (stats.notesCount > 0) parts.push(`${stats.notesCount} note${stats.notesCount === 1 ? "" : "s"}`);
+  if (stats.focusMinutesToday > 0) parts.push(`${stats.focusMinutesToday} min focused`);
+  if (parts.length === 0) return "A quiet day so far.";
+  return `${parts.join(" · ")} so far.`;
+}
