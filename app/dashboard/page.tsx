@@ -1,18 +1,46 @@
-// TODO(Module 2 — Dashboard):
-// Replace this placeholder with overview cards: today's date, today's
-// events (from the `events` table once Module 3 exists), and quick stats.
-// This is the page you land on after logging in — Module 1's job was just
-// to make sure it renders inside the nav shell with the theme applied.
-import { PlaceholderPage } from "@/components/placeholder-page";
+import {
+  getDashboardStats,
+  getGreeting,
+  getTodayEvents,
+  getTodayLong,
+} from "@/lib/dashboard-data";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { TodaySchedule } from "@/components/dashboard/today-schedule";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const [events, stats] = await Promise.all([getTodayEvents(), getDashboardStats()]);
+
+  const greeting = getGreeting();
+  const today = getTodayLong();
+
   return (
-    <PlaceholderPage
-      emoji="🗂️"
-      title="Dashboard"
-      description="Your overview cards will live here once Module 2 is built — today's events, quick stats, and shortcuts into the rest of the tracker."
-      moduleLabel="Module 2"
-      tagColor="pink"
-    />
+    <div className="max-w-4xl">
+      <header className="mb-8">
+        <h1 className="font-display text-4xl md:text-5xl text-heading">{greeting}</h1>
+        <p className="text-body/70 mt-2">{today}</p>
+      </header>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <StatCard label="Notes" value={String(stats.notesCount)} tag="green" />
+        <StatCard
+          label="Subjects in progress"
+          value={String(stats.activeSubjects)}
+          tag="blue"
+        />
+        <StatCard
+          label="Focus time today"
+          value={stats.focusMinutesToday > 0 ? `${stats.focusMinutesToday} min` : "0 min"}
+          tag="yellow"
+        />
+        <StatCard
+          label="Journal"
+          value={stats.journalLoggedToday ? "Logged" : "Not yet"}
+          tag="pink"
+          hint={stats.journalLoggedToday ? undefined : "No entry logged today"}
+        />
+      </div>
+
+      <TodaySchedule events={events} />
+    </div>
   );
 }
