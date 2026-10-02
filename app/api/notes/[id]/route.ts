@@ -1,105 +1,99 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "@/lib/supabase";
 import {
-  NOTE_BODY_MAX,
-  NOTE_TITLE_MAX,
-  UNTITLED,
-  type UpdateNoteRequest,
+  UUID_RE,
+  badRequest,
+  notFound,
+  serverError,
+} from "@/lib/notes-server";
+import {
+  FILE_TITLE_MAX,
+  NOTES_BUCKET,
+  NOTE_FILE_COLUMNS,
+  type UpdateFileRequest,
 } from "@/lib/notes-types";
 
 export const dynamic = "force-dynamic";
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 type RouteContext = { params: Promise<{ id: string }> };
 
-// PATCH /api/notes/[id] — update title and/or body. The `notes` table has no
-// updated_at trigger, so we stamp it here.
+// PATCH /api/notes/[id] — rename a file and/or move it to another course.
 export async function PATCH(request: Request, { params }: RouteContext) {
   const supabaseAdmin = getSupabaseServiceClient();
   const { id } = await params;
-  if (!UUID_RE.test(id)) {
-    return NextResponse.json({ error: "Invalid note id" }, { status: 400 });
-  }
+  if (!UUID_RE.test(id)) return badRequest("Invalid file id");
 
-  let payload: UpdateNoteRequest;
+  let p: UpdateFileRequest;
   try {
-    payload = await request.json();
+    p = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return badRequest("Invalid JSON body");
   }
 
-  const update: { title?: string; body?: string; updated_at: string } = {
+  const update: { title?: string; folder_id?: string; updated_at: string } = {
     updated_at: new Date().toISOString(),
   };
 
-  if (payload.title !== undefined) {
-    if (typeof payload.title !== "string") {
-      return NextResponse.json({ error: "Invalid title" }, { status: 400 });
+  if (p.title !== undefined) {
+    if (typeof p.title !== "string" || !p.title.trim()) {
+      return badRequest("Name can't be empty");
     }
-    const title = payload.title.trim();
-    if (title.length > NOTE_TITLE_MAX) {
-      return NextResponse.json(
-        { error: `Title must be ${NOTE_TITLE_MAX} characters or fewer` },
-        { status: 400 },
-      );
+    if (p.title.trim().length > FILE_TITLE_MAX) {
+      return badRequest(`Name must be ${FILE_TITLE_MAX} characters or fewer`);
     }
-    update.title = title || UNTITLED;
+    update.title = p.title.trim();
   }
 
-  if (payload.body !== undefined) {
-    if (typeof payload.body !== "string") {
-      return NextResponse.json({ error: "Invalid body" }, { status: 400 });
-    }
-    if (payload.body.length > NOTE_BODY_MAX) {
-      return NextResponse.json(
-        { error: `Note is too long (max ${NOTE_BODY_MAX} characters)` },
-        { status: 400 },
-      );
-    }
-    update.body = payload.body;
+  if (p.folder_id !== undefined) {
+    if (!UUID_RE.test(p.folder_id)) return badRequest("Invalid course id");
+    const folder = await supabaseAdmin
+      .from("note_folders")
+      .select("id")
+      .eq("id", p.folder_id)
+      .maybeSingle();
+    if (folder.error) return serverError(folder.error.message);
+    if (!folder.data) return notFound("Course not found");
+    update.folder_id = p.folder_id;
   }
 
-  if (update.title === undefined && update.body === undefined) {
-    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  if (update.title === undefined && update.folder_id === undefined) {
+    return badRequest("Nothing to update");
   }
 
   const { data, error } = await supabaseAdmin
     .from("notes")
     .update(update)
     .eq("id", id)
-    .select("id, title, body, created_at, updated_at")
+    .select(NOTE_FILE_COLUMNS)
     .maybeSingle();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-  if (!data) {
-    return NextResponse.json({ error: "Note not found" }, { status: 404 });
-  }
-  return NextResponse.json({ note: data });
+  if (error) return serverError(error.message);
+  if (!data) return notFound("File not found");
+  return NextResponse.json({ file: data });
 }
 
-// DELETE /api/notes/[id]
+// DELETE /api/notes/[id] — remove the stored file, then its row.
 export async function DELETE(_request: Request, { params }: RouteContext) {
   const supabaseAdmin = getSupabaseServiceClient();
   const { id } = await params;
-  if (!UUID_RE.test(id)) {
-    return NextResponse.json({ error: "Invalid note id" }, { status: 400 });
-  }
+  if (!UUID_RE.test(id)) return badRequest("Invalid file id");
 
-  const { data, error } = await supabaseAdmin
+  const row = await supabaseAdmin
     .from("notes")
-    .delete()
+    .select("file_path")
     .eq("id", id)
-    .select("id");
+    .maybeSingle();
+  if (row.error) return serverError(row.error.message);
+  if (!row.data) return notFound("File not found");
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (row.data.file_path) {
+    const { error } = await supabaseAdmin.storage
+      .from(NOTES_BUCKET)
+      .remove([row.data.file_path]);
+    if (error) return serverError(`Couldn't delete the file: ${error.message}`);
   }
-  if (!data || data.length === 0) {
-    return NextResponse.json({ error: "Note not found" }, { status: 404 });
-  }
+
+  const { error } = await supabaseAdmin.from("notes").delete().eq("id", id);
+  if (error) return serverError(error.message);
   return NextResponse.json({ ok: true });
 }

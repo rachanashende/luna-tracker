@@ -1,7 +1,7 @@
-import NotesView from "@/components/notes/notes-view";
+import FoldersView from "@/components/notes/folders-view";
 
 export const metadata = { title: "Notes · Luna" };
 
 export default function NotesPage() {
-  return <NotesView />;
+  return <FoldersView />;
 }
