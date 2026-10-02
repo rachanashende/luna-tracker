@@ -1,11 +1,7 @@
 // Module 3 — Calendar: edit + delete a single event or a single occurrence of a
 // recurring event.
-//
-// Same import assumption as ../route.ts: `supabaseAdmin` is the service-role
-// client exported from lib/supabase.ts — adjust that one import if your export
-// name differs.
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseServiceClient } from "@/lib/supabase";
 import type { DeleteEventInput, EventRow, UpdateEventInput } from "@/lib/events-types";
 
 interface RouteParams {
@@ -23,6 +19,7 @@ interface RouteParams {
 //   date, since the exception is keyed by its original date — only scope "all" can
 //   change `date`. Fine for v1; flagged in MODULE_3_NOTES.md.)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  const supabaseAdmin = getSupabaseServiceClient();
   const { id } = await params;
 
   let body: UpdateEventInput;
@@ -102,6 +99,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 // One-off events, or scope "all": deletes the master row (cascades to its exceptions).
 // Recurring events, scope "this": marks just that date cancelled via `event_exceptions`.
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  const supabaseAdmin = getSupabaseServiceClient();
   const { id } = await params;
   const { searchParams } = new URL(request.url);
   const occurrenceDate = searchParams.get("occurrence_date");

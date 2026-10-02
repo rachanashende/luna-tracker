@@ -1,18 +1,13 @@
 // Module 3 — Calendar: list + create events.
-//
-// ASSUMPTION (verify against your actual lib/supabase.ts): this file imports a
-// server-only, service-role client named `supabaseAdmin`. Module 1's notes say
-// lib/supabase.ts exports "a browser client and a server-only service client" but
-// don't give the exact export name. If yours differs (e.g. `createServiceClient()`),
-// change the one import line below — nothing else needs to change.
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseServiceClient } from "@/lib/supabase";
 import { expandAllEvents } from "@/lib/recurrence";
 import type { CreateEventInput, EventExceptionRow, EventRow } from "@/lib/events-types";
 
 // GET /api/events?start=YYYY-MM-DD&end=YYYY-MM-DD
 // Returns every occurrence (one-off + expanded recurring) overlapping [start, end].
 export async function GET(request: NextRequest) {
+  const supabaseAdmin = getSupabaseServiceClient();
   const { searchParams } = new URL(request.url);
   const start = searchParams.get("start");
   const end = searchParams.get("end");
@@ -79,6 +74,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/events — create a one-off or recurring event.
 export async function POST(request: NextRequest) {
+  const supabaseAdmin = getSupabaseServiceClient();
   let body: CreateEventInput;
   try {
     body = (await request.json()) as CreateEventInput;
