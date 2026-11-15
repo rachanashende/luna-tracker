@@ -18,15 +18,15 @@ Check off `[ ]` → `[x]` as modules get finished so it's easy to see progress a
 
 ### Hosting migration: Vercel → Cloudflare Workers (started Nov 2026)
 
-**Status:** in progress — not yet deployed or verified on Cloudflare. Keep the Vercel project running until the checklist below passes, then retire it.
+**Status:** code migration done and tested locally (vinext build passes; the built Worker redirects signed-out requests to `/login`). **Not yet deployed to Cloudflare** — remaining: first deploy, env vars, and the checklist below. (Vercel project has been deleted, so the app is offline until this is deployed.)
 
 **Approach:** use **vinext**, which Cloudflare now recommends as the default way to run Next.js on Workers. `npx vinext check` on this repo reports 100% compatible (including `proxy.ts`). The OpenNext adapter (`@opennextjs/cloudflare`) is the fallback, but its docs say Node.js middleware isn't supported yet, which Next.js 16's `proxy.ts` is likely to hit.
 
 **Steps:**
-1. Bump `react` and `react-dom` to 19.3.1 (vinext requires `^19.3.1`; the repo was on 19.2.8).
-2. Run `npx vinext init --platform cloudflare` (adds vinext/Vite deps, `dev:vinext` / `build:vinext` scripts, Vite and Workers configs).
-3. Test locally with `npm run dev:vinext` and `npm run build:vinext`.
-4. Deploy with `npx @vinext/cloudflare deploy`, or connect the GitHub repo in the Cloudflare dashboard.
+1. ~~Bump `react` and `react-dom` to 19.3.1~~ — done (vinext requires `^19.3.1`; the repo was on 19.2.8).
+2. ~~Run `npx vinext init --platform cloudflare`~~ — done with no CDN cache, no data cache, and no image optimization (Luna is single-user and doesn't use `next/image`). Added `vite.config.ts`, `cloudflare.config.ts`, the `*:vinext` scripts, and `"type": "module"`.
+3. ~~Test locally~~ — `npm run build:vinext` passes; `npm run start:vinext` serves the Worker and `proxy.ts` redirects work.
+4. Deploy with `npm run deploy:vinext` (builds, then deploys; asks you to sign in to Cloudflare). Auto-deploy from GitHub can be connected afterwards.
 5. Set env vars in Cloudflare: `APP_PASSWORD`, `SESSION_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and (Module 7) `GEMINI_API_KEY`. `NEXT_PUBLIC_` vars must also be build variables.
 6. Run the checklist below against the new `*.workers.dev` URL, then update the live URLs in the docs and delete the Vercel project.
 

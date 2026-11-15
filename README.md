@@ -76,12 +76,13 @@ Cloudflare's recommended way to run Next.js on Workers. (It was originally
 hosted on Vercel; see "Hosting migration" in `BUILD_SPEC.md`.)
 
 1. Push this repo to GitHub.
-2. One-time setup: run `npx vinext init --platform cloudflare`. It adds the
-   vinext/Vite dependencies, the `dev:vinext` / `build:vinext` scripts, and the
-   Workers config. Note that vinext needs React 19.3.1 or newer.
-3. In the [Cloudflare dashboard](https://dash.cloudflare.com/), connect this
-   GitHub repo (Workers & Pages → Create), or deploy from the terminal with
-   `npx @vinext/cloudflare deploy`.
+2. The vinext setup is already done in this repo (`vite.config.ts`,
+   `cloudflare.config.ts`, and the `*:vinext` scripts; React is 19.3.1 as vinext
+   requires). Test locally with `npm run build:vinext` then `npm run start:vinext`.
+3. Deploy from your terminal with `npm run deploy:vinext` (builds, then deploys to
+   Cloudflare Workers; you'll be asked to sign in to Cloudflare the first time).
+   You can connect the GitHub repo in the Cloudflare dashboard for auto-deploys
+   later.
 4. Add the same variables from `.env.local` under **Settings → Variables and
    Secrets**. Put the secrets (`SUPABASE_SERVICE_ROLE_KEY`, `APP_PASSWORD`,
    `SESSION_SECRET`, `GEMINI_API_KEY`) in as secrets, and add the
