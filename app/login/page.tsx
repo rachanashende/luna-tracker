@@ -17,7 +17,7 @@ export default function LoginPage({
             Welcome back
           </h1>
           <p className="mt-1 text-sm text-foreground/70">
-            Enter your password to open your tracker.
+            Log in to open your tracker.
           </p>
         </div>
 

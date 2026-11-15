@@ -11,18 +11,18 @@ A personal, single-user full-stack web app, deployed on a real URL, password-gat
 | Layer | Choice | Why |
 |---|---|---|
 | Frontend + Backend | **Next.js** (App Router, TypeScript) | One codebase, API routes double as backend, runs on Cloudflare Workers (originally planned for Vercel) |
-| Database + Auth storage + File storage | **Supabase** (Postgres + Storage) | Free tier, generous for single-user, gives you a real Postgres DB and file storage for uploaded syllabus PDFs |
+| Database + Auth storage + File storage | **Supabase** (Postgres + Storage) | Free tier, generous for a handful of users, gives you a real Postgres DB and file storage for uploaded syllabus PDFs |
 | AI (study plan generation) | **Gemini API** (`gemini-2.5-flash` or `flash-lite`), via free API key from Google AI Studio | Free tier (no card needed), plenty of headroom for personal use — you'll generate maybe a handful of plans a week, nowhere near the daily request cap |
 | Styling | **Tailwind CSS** | Fast to theme once we pick your color palette |
 | Hosting | **Cloudflare Workers** (app, via vinext) + **Supabase** (DB/storage) | Both have permanent free tiers sufficient for one user |
-| Auth | **Single shared password** (not full user accounts) | It's just you — a password gate (env-var secret, checked server-side, sets an httpOnly session cookie) is simpler than real auth and still keeps strangers out |
+| Auth | **Supabase Auth** (email + password), invite-code sign-up, per-user data via Postgres RLS | Started as a single shared password (just you); changed in Nov 2026 so friends can have their own accounts. See `BUILD_SPEC.md` → "Multi-user" |
 
 ## 3. Feature breakdown by phase
 
 We build in phases so it's usable early and nothing feels overwhelming.
 
 ### Phase 1 — Foundation
-- Password gate (login screen → session cookie)
+- Login gate (originally one shared password; now email + password accounts with invite-code sign-up)
 - App shell: sidebar/nav, responsive layout, theme (colors TBD)
 - Dashboard page (skeleton): today's date, quick overview cards (placeholder data)
 - Supabase project wired up, base schema deployed

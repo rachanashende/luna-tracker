@@ -1,7 +1,7 @@
 // Module 3 — Calendar: edit + delete a single event or a single occurrence of a
 // recurring event.
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServiceClient } from "@/lib/supabase";
+import { getSupabaseUserClient, unauthorized } from "@/lib/supabase-server";
 import type { DeleteEventInput, EventRow, UpdateEventInput } from "@/lib/events-types";
 
 interface RouteParams {
@@ -19,7 +19,9 @@ interface RouteParams {
 //   date, since the exception is keyed by its original date — only scope "all" can
 //   change `date`. Fine for v1; flagged in MODULE_3_NOTES.md.)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
   const { id } = await params;
 
   let body: UpdateEventInput;
@@ -33,7 +35,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "occurrence_date is required" }, { status: 400 });
   }
 
-  const { data: existing, error: fetchError } = await supabaseAdmin
+  const { data: existing, error: fetchError } = await db
     .from("events")
     .select("*")
     .eq("id", id)
@@ -63,7 +65,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       updates.recurrence_end_date = body.recurrence_end_date;
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await db
       .from("events")
       .update(updates)
       .eq("id", id)
@@ -85,7 +87,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     notes: body.notes !== undefined ? body.notes : null,
   };
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from("event_exceptions")
     .upsert(exceptionPayload, { onConflict: "parent_event_id,occurrence_date" })
     .select()
@@ -99,13 +101,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 // One-off events, or scope "all": deletes the master row (cascades to its exceptions).
 // Recurring events, scope "this": marks just that date cancelled via `event_exceptions`.
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
   const { id } = await params;
   const { searchParams } = new URL(request.url);
   const occurrenceDate = searchParams.get("occurrence_date");
   const scope = (searchParams.get("scope") ?? "all") as DeleteEventInput["scope"];
 
-  const { data: existing, error: fetchError } = await supabaseAdmin
+  const { data: existing, error: fetchError } = await db
     .from("events")
     .select("*")
     .eq("id", id)
@@ -119,7 +123,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const isRecurring = !!event.recurrence_days && event.recurrence_days.length > 0;
 
   if (!isRecurring || scope === "all") {
-    const { error } = await supabaseAdmin.from("events").delete().eq("id", id);
+    const { error } = await db.from("events").delete().eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ deleted: true });
   }
@@ -131,7 +135,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const { error } = await supabaseAdmin.from("event_exceptions").upsert(
+  const { error } = await db.from("event_exceptions").upsert(
     {
       parent_event_id: id,
       occurrence_date: occurrenceDate,

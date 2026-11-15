@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServiceClient } from "@/lib/supabase";
+import { getSupabaseUserClient, unauthorized } from "@/lib/supabase-server";
 import {
   computeStreak,
   isValidDateStr,
@@ -16,13 +16,15 @@ const err = (message: string, status = 400) =>
  *   ?stats=1&today=YYYY-MM-DD          { streak, total }
  */
 export async function GET(req: NextRequest) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
   const sp = req.nextUrl.searchParams;
 
   if (sp.get("stats")) {
     const today = sp.get("today");
     if (!isValidDateStr(today)) return err("today must be YYYY-MM-DD");
-    const { data, count, error } = await supabaseAdmin
+    const { data, count, error } = await db
       .from("journal")
       .select("date", { count: "exact" })
       .order("date", { ascending: false })
@@ -35,7 +37,7 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  let query = supabaseAdmin
+  let query = db
     .from("journal")
     .select("*")
     .order("date", { ascending: false })
@@ -67,12 +69,14 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/journal  { date, mood?, body } */
 export async function POST(req: NextRequest) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
   const raw = await req.json().catch(() => null);
   const parsed = parseEntryInput(raw, "create");
   if (!parsed.ok) return err(parsed.error);
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from("journal")
     .insert({
       date: parsed.value.date,

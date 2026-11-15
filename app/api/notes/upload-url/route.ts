@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSupabaseUserClient, unauthorized } from "@/lib/supabase-server";
 import { getSupabaseServiceClient } from "@/lib/supabase";
 import {
   UUID_RE,
@@ -18,10 +19,12 @@ export const dynamic = "force-dynamic";
 
 // POST /api/notes/upload-url — step 1 of an upload. Validates the file and
 // returns a one-time signed URL token so the browser can send the bytes
-// straight to Supabase Storage (this keeps big files off the Vercel function,
-// which caps request bodies at ~4.5 MB).
+// straight to Supabase Storage (this keeps big files off the app server,
+// which would cap request bodies).
 export async function POST(request: Request) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
 
   let p: UploadUrlRequest;
   try {
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
     return badRequest("Files can be up to 50 MB");
   }
 
-  const folder = await supabaseAdmin
+  const folder = await db
     .from("note_folders")
     .select("id")
     .eq("id", p.folder_id)
@@ -51,8 +54,10 @@ export async function POST(request: Request) {
   if (folder.error) return serverError(folder.error.message);
   if (!folder.data) return notFound("Course not found");
 
-  const path = `${p.folder_id}/${crypto.randomUUID()}-${safeObjectName(p.file_name)}`;
-  const { data, error } = await supabaseAdmin.storage
+  // Objects live under <user id>/<course id>/ so one user's uploads can never
+  // collide with, or be registered as, another user's.
+  const path = `${ctx.userId}/${p.folder_id}/${crypto.randomUUID()}-${safeObjectName(p.file_name)}`;
+  const { data, error } = await getSupabaseServiceClient().storage
     .from(NOTES_BUCKET)
     .createSignedUploadUrl(path);
 
