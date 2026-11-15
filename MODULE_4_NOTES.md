@@ -44,8 +44,10 @@ course, customize it, upload files into it, and open/download/delete them."
 
 ## Decisions made along the way
 
-**Uploads go browser → Supabase Storage directly**, not through a Next.js route. Vercel
-caps request bodies at ~4.5 MB, which a lecture PDF/PPT easily exceeds. Flow: the browser
+**Uploads go browser → Supabase Storage directly**, not through a Next.js route.
+Serverless hosts cap request bodies (Vercel, where this was first built, caps them at
+~4.5 MB), which a lecture PDF/PPT easily exceeds — and going direct to Supabase keeps
+large uploads off the app server on Cloudflare Workers too. Flow: the browser
 asks `/api/notes/upload-url` (server validates type/size/course and issues a signed upload
 token) → uploads with `getSupabaseBrowserClient().storage.uploadToSignedUrl` → calls
 `POST /api/notes` to record it. If recording fails, the stored object is removed.
@@ -81,9 +83,11 @@ must stay in sync with the bucket's `allowed_mime_types`.
    `app/notes/[folderId]/page.tsx`, and everything under `app/api/notes/` into the repo at
    the same paths (this replaces the 501 stub in `app/api/notes/route.ts` and the Module 1
    placeholder page).
-3. `npm run build`, push, let Vercel deploy.
-4. Check `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set in Vercel
-   (they should be from Module 1) — the browser client needs them to upload.
+3. Build locally, push, and let Cloudflare deploy (hosting moved from Vercel to
+   Cloudflare Workers — see `BUILD_SPEC.md` → "Hosting migration").
+4. Check `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set in
+   Cloudflare, as both runtime variables and build variables — the browser client
+   needs them to upload.
 
 Tailwind classes I couldn't verify against your real `globals.css`: `bg-surface`,
 `border-border`, `font-serif`, `text-heading`, `bg-accent`, `bg-background`. If a token is

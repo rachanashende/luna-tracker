@@ -13,8 +13,35 @@ Check off `[ ]` → `[x]` as modules get finished so it's easy to see progress a
 - **Database + file storage**: Supabase (Postgres + Storage)
 - **AI**: Gemini API (`gemini-2.5-flash` or `flash-lite`), free tier, key from aistudio.google.com
 - **Styling**: Tailwind CSS
-- **Hosting**: Vercel (app) + Supabase (DB/storage)
+- **Hosting**: Cloudflare Workers (app, free plan) + Supabase (DB/storage). *Migrating from Vercel as of Nov 2026 — see "Hosting migration" below.*
 - **Auth**: single shared password → server-side check → httpOnly session cookie (no full user accounts)
+
+### Hosting migration: Vercel → Cloudflare Workers (started Nov 2026)
+
+**Status:** in progress — not yet deployed or verified on Cloudflare. Keep the Vercel project running until the checklist below passes, then retire it.
+
+**Approach:** use **vinext**, which Cloudflare now recommends as the default way to run Next.js on Workers. `npx vinext check` on this repo reports 100% compatible (including `proxy.ts`). The OpenNext adapter (`@opennextjs/cloudflare`) is the fallback, but its docs say Node.js middleware isn't supported yet, which Next.js 16's `proxy.ts` is likely to hit.
+
+**Steps:**
+1. Bump `react` and `react-dom` to 19.3.1 (vinext requires `^19.3.1`; the repo was on 19.2.8).
+2. Run `npx vinext init --platform cloudflare` (adds vinext/Vite deps, `dev:vinext` / `build:vinext` scripts, Vite and Workers configs).
+3. Test locally with `npm run dev:vinext` and `npm run build:vinext`.
+4. Deploy with `npx @vinext/cloudflare deploy`, or connect the GitHub repo in the Cloudflare dashboard.
+5. Set env vars in Cloudflare: `APP_PASSWORD`, `SESSION_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and (Module 7) `GEMINI_API_KEY`. `NEXT_PUBLIC_` vars must also be build variables.
+6. Run the checklist below against the new `*.workers.dev` URL, then update the live URLs in the docs and delete the Vercel project.
+
+**Workers Free limits to watch:** 100,000 requests/day; **10 ms CPU time per request** (waiting on Supabase/Gemini doesn't count); 50 subrequests per invocation; 128 MB memory. The CPU cap is the main risk for server-rendered pages (Dashboard, Calendar's `lib/recurrence.ts`, Journal stats) and for server-side PDF parsing in Module 7.
+
+**Verification checklist:**
+- [ ] Signed out, `/` and `/dashboard` redirect to `/login?from=…` (tests `proxy.ts`)
+- [ ] Login and logout work
+- [ ] Dashboard loads with live data, no CPU-limit errors
+- [ ] Calendar: add/edit/delete, recurring events
+- [ ] Notes: create a course, upload a PDF direct to Supabase, open and download it
+- [ ] Journal: save an entry, see it in the calendar and list
+- [ ] Theme toggle persists, no flash of wrong theme
+
+**Not affected by the move:** Supabase (DB, storage, RLS, migrations), the password gate logic, and the browser → Supabase direct-upload flow for notes.
 
 ### Color palette (finalized)
 
@@ -62,7 +89,8 @@ study_plan    (id, subject_id, date, topic, status, source)
 ### Accounts needed before starting
 - [ ] Supabase account + project created
 - [ ] Gemini API key (aistudio.google.com/app/apikey)
-- [ ] Vercel account
+- [ ] Cloudflare account (Workers, free plan) — replaces the Vercel account; needed for the hosting migration
+- [x] ~~Vercel account~~ — original host, being retired after the Cloudflare cutover
 - [ ] Password chosen for the login gate
 
 ---
@@ -81,7 +109,7 @@ study_plan    (id, subject_id, date, topic, status, source)
 - Middleware redirecting unauthenticated requests to `/login`
 - App shell: sidebar/top nav with links to Dashboard, Calendar, Notes, Journal, Pomodoro, Study
 - Dark/light mode toggle
-- Deployed to Vercel, env vars set (Supabase URL/key, session secret)
+- Deployed (first to Vercel, env vars set: Supabase URL/key, session secret; now migrating to Cloudflare Workers — see "Hosting migration")
 
 **Definition of done:** You can visit the live URL, get redirected to login, enter the password, and land on an empty dashboard shell with working nav and theme toggle.
 

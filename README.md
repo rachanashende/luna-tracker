@@ -69,14 +69,29 @@ Visit `http://localhost:3000` — you should land on `/login`, and after
 entering `APP_PASSWORD` you'll be redirected to `/dashboard` inside the app
 shell with working nav and theme toggle.
 
-## 4. Deploy to Vercel
+## 4. Deploy to Cloudflare Workers
+
+Luna runs on Cloudflare Workers (free plan) using [vinext](https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/),
+Cloudflare's recommended way to run Next.js on Workers. (It was originally
+hosted on Vercel; see "Hosting migration" in `BUILD_SPEC.md`.)
 
 1. Push this repo to GitHub.
-2. Import it in [Vercel](https://vercel.com/new).
-3. Add the same environment variables from `.env.local` under **Project →
-   Settings → Environment Variables**.
-4. Deploy. Visit the live URL — same behavior as local: redirected to
-   `/login` until you enter the password.
+2. One-time setup: run `npx vinext init --platform cloudflare`. It adds the
+   vinext/Vite dependencies, the `dev:vinext` / `build:vinext` scripts, and the
+   Workers config. Note that vinext needs React 19.3.1 or newer.
+3. In the [Cloudflare dashboard](https://dash.cloudflare.com/), connect this
+   GitHub repo (Workers & Pages → Create), or deploy from the terminal with
+   `npx @vinext/cloudflare deploy`.
+4. Add the same variables from `.env.local` under **Settings → Variables and
+   Secrets**. Put the secrets (`SUPABASE_SERVICE_ROLE_KEY`, `APP_PASSWORD`,
+   `SESSION_SECRET`, `GEMINI_API_KEY`) in as secrets, and add the
+   `NEXT_PUBLIC_` ones as **build variables** too, since they're needed at
+   build time. For local Workers dev, put them in a `.dev.vars` file (gitignored).
+5. Deploy. Visit the `*.workers.dev` URL — same behavior as local: redirected
+   to `/login` until you enter the password.
+
+Workers Free limits worth knowing: 100,000 requests/day and 10 ms CPU time per
+request (time spent waiting on Supabase or Gemini doesn't count).
 
 ## Building the next module
 
