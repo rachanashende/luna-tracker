@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSupabaseUserClient, unauthorized } from "@/lib/supabase-server";
 import { getSupabaseServiceClient } from "@/lib/supabase";
 import {
   UUID_RE,
@@ -18,11 +19,13 @@ export const dynamic = "force-dynamic";
 
 // GET /api/notes?folder_id=<uuid> — files in one course, newest first.
 export async function GET(request: Request) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
   const folderId = new URL(request.url).searchParams.get("folder_id") ?? "";
   if (!UUID_RE.test(folderId)) return badRequest("folder_id is required");
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from("notes")
     .select(NOTE_FILE_COLUMNS)
     .eq("folder_id", folderId)
@@ -36,7 +39,9 @@ export async function GET(request: Request) {
 // POST /api/notes — register a file that has ALREADY been uploaded to storage
 // (via the signed URL from /api/notes/upload-url). Creates the `notes` row.
 export async function POST(request: Request) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
 
   let p: RegisterFileRequest;
   try {
@@ -59,8 +64,12 @@ export async function POST(request: Request) {
   ) {
     return badRequest("Invalid file size");
   }
-  // The object key must be one this API issued for this course.
-  if (typeof p.path !== "string" || !p.path.startsWith(`${p.folder_id}/`) || p.path.includes("..")) {
+  // The object key must be one this API issued to this user for this course.
+  if (
+    typeof p.path !== "string" ||
+    !p.path.startsWith(`${ctx.userId}/${p.folder_id}/`) ||
+    p.path.includes("..")
+  ) {
     return badRequest("Invalid file path");
   }
 
@@ -69,7 +78,7 @@ export async function POST(request: Request) {
     return badRequest(`Title must be ${FILE_TITLE_MAX} characters or fewer`);
   }
 
-  const folder = await supabaseAdmin
+  const folder = await db
     .from("note_folders")
     .select("id")
     .eq("id", p.folder_id)
@@ -77,7 +86,7 @@ export async function POST(request: Request) {
   if (folder.error) return serverError(folder.error.message);
   if (!folder.data) return notFound("Course not found");
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from("notes")
     .insert({
       folder_id: p.folder_id,
@@ -93,7 +102,7 @@ export async function POST(request: Request) {
 
   if (error) {
     // Don't leave an orphaned object behind if the row couldn't be saved.
-    await supabaseAdmin.storage.from(NOTES_BUCKET).remove([p.path]);
+    await getSupabaseServiceClient().storage.from(NOTES_BUCKET).remove([p.path]);
     return serverError(error.message);
   }
   return NextResponse.json({ file: data }, { status: 201 });

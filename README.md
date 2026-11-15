@@ -1,6 +1,6 @@
 # Luna
 
-A personal, password-locked productivity hub: calendar, notes, journal,
+A productivity hub with private per-user accounts: calendar, notes, journal,
 Pomodoro timer, and an AI-assisted study planner. See `PROJECT_PLAN.md` (if
 you have your original copy) and `BUILD_SPEC.md` for the full plan —
 `BUILD_SPEC.md` and `FILE_STRUCTURE.md` are the ones that matter for
@@ -19,9 +19,11 @@ module's full prompt when you're ready.
 - Next.js (App Router, TypeScript) + Tailwind, with the finalized color
   palette wired up for light and dark mode
 - A dark/light theme toggle (persisted, no flash on load)
-- A single-password login gate: password → server-side check → signed,
-  httpOnly session cookie (no user accounts)
-- Middleware that redirects anyone without a valid session to `/login`
+- Multi-user accounts: Supabase Auth (email + password), sign-up gated by an
+  invite code, cookie sessions refreshed in `proxy.ts`
+- Every table has a `user_id` and Postgres row-level security, so each person
+  only ever sees their own data
+- `proxy.ts` redirects anyone without a valid session to `/login`
 - The app shell: sidebar nav on desktop, bottom tab bar on mobile, with
   links to all six sections
 - Supabase client helpers (`lib/supabase.ts`) — a browser client and a
@@ -54,8 +56,7 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API (secret) |
-| `APP_PASSWORD` | Any password you want — this is the single shared login |
-| `SESSION_SECRET` | A random string, e.g. `openssl rand -base64 32` |
+| `INVITE_CODE` | Any code you choose — friends must enter it on `/signup` |
 | `GEMINI_API_KEY` | Not needed until Module 7 — [aistudio.google.com](https://aistudio.google.com/app/apikey) |
 
 ## 3. Run it locally
@@ -66,8 +67,24 @@ npm run dev
 ```
 
 Visit `http://localhost:3000` — you should land on `/login`, and after
-entering `APP_PASSWORD` you'll be redirected to `/dashboard` inside the app
-shell with working nav and theme toggle.
+signing up (with `INVITE_CODE`) or logging in you'll be redirected to
+`/dashboard` inside the app shell with working nav and theme toggle.
+
+## 3b. Multi-user setup (Supabase)
+
+1. In the Supabase SQL editor, run `supabase/005_multi_user.sql` (adds `user_id`
+   + row-level security to every table).
+2. Authentication → Providers → Email: turn **off** "Confirm email" (the invite
+   code already gates sign-up, and Supabase's default mailer is heavily rate-limited).
+3. Sign up in the app at `/signup` with your invite code.
+4. Run `supabase/006_claim_existing_data.sql` after replacing `YOUR_EMAIL_HERE`
+   with your sign-up email. This assigns all pre-existing rows to you. Until it
+   runs, old data is invisible to everyone.
+5. Friends sign up the same way with the invite code. Their data is fully separate.
+
+Known limitations: the dashboard's "today" is fixed to `Asia/Kolkata`;
+invite-code guesses are not rate-limited; uploaded files from before multi-user
+keep their old storage paths (they still work).
 
 ## 4. Deploy to Cloudflare Workers
 
@@ -84,12 +101,12 @@ hosted on Vercel; see "Hosting migration" in `BUILD_SPEC.md`.)
    You can connect the GitHub repo in the Cloudflare dashboard for auto-deploys
    later.
 4. Add the same variables from `.env.local` under **Settings → Variables and
-   Secrets**. Put the secrets (`SUPABASE_SERVICE_ROLE_KEY`, `APP_PASSWORD`,
-   `SESSION_SECRET`, `GEMINI_API_KEY`) in as secrets, and add the
+   Secrets**. Put the secrets (`SUPABASE_SERVICE_ROLE_KEY`, `INVITE_CODE`,
+   `GEMINI_API_KEY`) in as secrets, and add the
    `NEXT_PUBLIC_` ones as **build variables** too, since they're needed at
    build time. For local Workers dev, put them in a `.dev.vars` file (gitignored).
 5. Deploy. Visit the `*.workers.dev` URL — same behavior as local: redirected
-   to `/login` until you enter the password.
+   to `/login` until you sign in.
 
 Workers Free limits worth knowing: 100,000 requests/day and 10 ms CPU time per
 request (time spent waiting on Supabase or Gemini doesn't count).

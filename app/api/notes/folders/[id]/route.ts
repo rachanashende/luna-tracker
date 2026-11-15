@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSupabaseUserClient, unauthorized } from "@/lib/supabase-server";
 import { getSupabaseServiceClient } from "@/lib/supabase";
 import {
   UUID_RE,
@@ -17,11 +18,13 @@ const FOLDER_COLUMNS = "id, name, description, color, icon, created_at";
 
 // GET /api/notes/folders/[id] — one course.
 export async function GET(_request: Request, { params }: RouteContext) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
   const { id } = await params;
   if (!UUID_RE.test(id)) return badRequest("Invalid course id");
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from("note_folders")
     .select(FOLDER_COLUMNS)
     .eq("id", id)
@@ -34,7 +37,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
 // PATCH /api/notes/folders/[id] — rename / recolour / change icon or description.
 export async function PATCH(request: Request, { params }: RouteContext) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
   const { id } = await params;
   if (!UUID_RE.test(id)) return badRequest("Invalid course id");
 
@@ -47,7 +52,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const parsed = parseFolderInput(raw, "update");
   if (!parsed.ok) return badRequest(parsed.error);
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from("note_folders")
     .update(parsed.value)
     .eq("id", id)
@@ -62,11 +67,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 // DELETE /api/notes/folders/[id] — delete a course AND every file in it.
 // Storage objects are removed first; the DB rows go via ON DELETE CASCADE.
 export async function DELETE(_request: Request, { params }: RouteContext) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
   const { id } = await params;
   if (!UUID_RE.test(id)) return badRequest("Invalid course id");
 
-  const files = await supabaseAdmin
+  const files = await db
     .from("notes")
     .select("file_path")
     .eq("folder_id", id);
@@ -77,13 +84,13 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     .filter((p): p is string => !!p);
 
   for (let i = 0; i < paths.length; i += 100) {
-    const { error } = await supabaseAdmin.storage
+    const { error } = await getSupabaseServiceClient().storage
       .from(NOTES_BUCKET)
       .remove(paths.slice(i, i + 100));
     if (error) return serverError(`Couldn't delete files: ${error.message}`);
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from("note_folders")
     .delete()
     .eq("id", id)

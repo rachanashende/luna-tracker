@@ -1,9 +1,9 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/session";
 
-// Paths that don't require a session. Everything else falls under the
+// Paths that don't require a signed-in user. Everything else falls under the
 // matcher below and gets checked.
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/signup"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -12,25 +12,61 @@ export async function proxy(req: NextRequest) {
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
 
-  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
-  const secret = process.env.SESSION_SECRET ?? "";
-  const authenticated = await verifySessionToken(token, secret);
+  // Standard Supabase session-refresh pattern: read the auth cookies from the
+  // request, and if Supabase refreshes the token, write the new cookies to
+  // both the request (so server code sees them) and the response (so the
+  // browser keeps them).
+  let response = NextResponse.next({ request: req });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+    {
+      cookies: {
+        getAll() {
+          return req.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          for (const { name, value } of cookiesToSet) {
+            req.cookies.set(name, value);
+          }
+          response = NextResponse.next({ request: req });
+          for (const { name, value, options } of cookiesToSet) {
+            response.cookies.set(name, value, options);
+          }
+        },
+      },
+    }
+  );
+
+  // Verifies the token's signature; doesn't trust the cookie blindly.
+  const { data } = await supabase.auth.getClaims();
+  const authenticated = Boolean(data?.claims?.sub);
+
+  // A redirect must carry along any refreshed auth cookies.
+  const redirectTo = (url: URL) => {
+    const redirect = NextResponse.redirect(url);
+    for (const cookie of response.cookies.getAll()) {
+      redirect.cookies.set(cookie);
+    }
+    return redirect;
+  };
 
   if (isPublic) {
-    // Already logged in and hitting /login → send them somewhere useful.
+    // Already signed in and hitting /login or /signup → send them somewhere useful.
     if (authenticated) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      return redirectTo(new URL("/dashboard", req.url));
     }
-    return NextResponse.next();
+    return response;
   }
 
   if (!authenticated) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("from", pathname);
-    return NextResponse.redirect(loginUrl);
+    return redirectTo(loginUrl);
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {

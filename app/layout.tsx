@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
-import { cookies } from "next/headers";
 import "./globals.css";
-import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/session";
+import { getSupabaseUserClient } from "@/lib/supabase-server";
 import { ThemeProvider } from "@/components/theme-provider";
 import { NavShell } from "@/components/nav-shell";
 
@@ -43,12 +42,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE_NAME)?.value;
-  const authenticated = await verifySessionToken(
-    token,
-    process.env.SESSION_SECRET ?? ""
-  );
+  const authenticated = (await getSupabaseUserClient()) !== null;
 
   return (
     <html lang="en" suppressHydrationWarning>

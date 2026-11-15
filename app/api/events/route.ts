@@ -1,13 +1,15 @@
 // Module 3 — Calendar: list + create events.
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServiceClient } from "@/lib/supabase";
+import { getSupabaseUserClient, unauthorized } from "@/lib/supabase-server";
 import { expandAllEvents } from "@/lib/recurrence";
 import type { CreateEventInput, EventExceptionRow, EventRow } from "@/lib/events-types";
 
 // GET /api/events?start=YYYY-MM-DD&end=YYYY-MM-DD
 // Returns every occurrence (one-off + expanded recurring) overlapping [start, end].
 export async function GET(request: NextRequest) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
   const { searchParams } = new URL(request.url);
   const start = searchParams.get("start");
   const end = searchParams.get("end");
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
   // Single-user app, so the events table stays small — simplest and safest to fetch
   // every row and filter/expand in JS rather than lean on a fragile OR-filter string
   // against Postgres for the "one-off in range OR recurring not-yet-ended" condition.
-  const { data: events, error: eventsError } = await supabaseAdmin
+  const { data: events, error: eventsError } = await db
     .from("events")
     .select("*")
     .order("date", { ascending: true });
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
 
   let exceptions: EventExceptionRow[] = [];
   if (recurringIds.length > 0) {
-    const { data: exData, error: exError } = await supabaseAdmin
+    const { data: exData, error: exError } = await db
       .from("event_exceptions")
       .select("*")
       .in("parent_event_id", recurringIds)
@@ -74,7 +76,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/events — create a one-off or recurring event.
 export async function POST(request: NextRequest) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
   let body: CreateEventInput;
   try {
     body = (await request.json()) as CreateEventInput;
@@ -89,7 +93,7 @@ export async function POST(request: NextRequest) {
   const recurrenceDays =
     body.recurrence_days && body.recurrence_days.length > 0 ? body.recurrence_days : null;
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from("events")
     .insert({
       title: body.title.trim(),

@@ -1,19 +1,21 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServiceClient } from "@/lib/supabase";
+import { getSupabaseUserClient, unauthorized } from "@/lib/supabase-server";
 import { parseFolderInput, serverError } from "@/lib/notes-server";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/notes/folders — all courses (oldest first) with a file count each.
 export async function GET() {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
 
   const [folders, files] = await Promise.all([
-    supabaseAdmin
+    db
       .from("note_folders")
       .select("id, name, description, color, icon, created_at")
       .order("created_at", { ascending: true }),
-    supabaseAdmin.from("notes").select("folder_id").not("folder_id", "is", null),
+    db.from("notes").select("folder_id").not("folder_id", "is", null),
   ]);
 
   if (folders.error) return serverError(folders.error.message);
@@ -34,7 +36,9 @@ export async function GET() {
 
 // POST /api/notes/folders — create a course.
 export async function POST(request: Request) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
 
   let raw: unknown;
   try {
@@ -47,7 +51,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from("note_folders")
     .insert(parsed.value)
     .select("id, name, description, color, icon, created_at")

@@ -12,6 +12,11 @@ export default defineConfig({
     },
     env: {
       ASSETS: bindings.assets(),
+      // Runtime secrets. Set the values in the Cloudflare dashboard
+      // (Settings -> Variables and Secrets), or in .dev.vars for local runs.
+      // NEXT_PUBLIC_* values are not listed here: they are baked in at build time.
+      SUPABASE_SERVICE_ROLE_KEY: bindings.secret(),
+      INVITE_CODE: bindings.secret(),
     },
   }),
 });

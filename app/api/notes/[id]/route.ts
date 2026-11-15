@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSupabaseUserClient, unauthorized } from "@/lib/supabase-server";
 import { getSupabaseServiceClient } from "@/lib/supabase";
 import {
   UUID_RE,
@@ -19,7 +20,9 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 // PATCH /api/notes/[id] — rename a file and/or move it to another course.
 export async function PATCH(request: Request, { params }: RouteContext) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
   const { id } = await params;
   if (!UUID_RE.test(id)) return badRequest("Invalid file id");
 
@@ -46,7 +49,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   if (p.folder_id !== undefined) {
     if (!UUID_RE.test(p.folder_id)) return badRequest("Invalid course id");
-    const folder = await supabaseAdmin
+    const folder = await db
       .from("note_folders")
       .select("id")
       .eq("id", p.folder_id)
@@ -60,7 +63,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     return badRequest("Nothing to update");
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from("notes")
     .update(update)
     .eq("id", id)
@@ -74,11 +77,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
 // DELETE /api/notes/[id] — remove the stored file, then its row.
 export async function DELETE(_request: Request, { params }: RouteContext) {
-  const supabaseAdmin = getSupabaseServiceClient();
+  const ctx = await getSupabaseUserClient();
+  if (!ctx) return unauthorized();
+  const db = ctx.supabase;
   const { id } = await params;
   if (!UUID_RE.test(id)) return badRequest("Invalid file id");
 
-  const row = await supabaseAdmin
+  const row = await db
     .from("notes")
     .select("file_path")
     .eq("id", id)
@@ -87,13 +92,13 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   if (!row.data) return notFound("File not found");
 
   if (row.data.file_path) {
-    const { error } = await supabaseAdmin.storage
+    const { error } = await getSupabaseServiceClient().storage
       .from(NOTES_BUCKET)
       .remove([row.data.file_path]);
     if (error) return serverError(`Couldn't delete the file: ${error.message}`);
   }
 
-  const { error } = await supabaseAdmin.from("notes").delete().eq("id", id);
+  const { error } = await db.from("notes").delete().eq("id", id);
   if (error) return serverError(error.message);
   return NextResponse.json({ ok: true });
 }

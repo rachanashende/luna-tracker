@@ -1,24 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
-/**
- * ASSUMPTION: Module 1's lib/supabase.ts already exports a server-only
- * service-role client. If its export name differs from what's below, swap
- * this for e.g. `import { supabaseService } from "@/lib/supabase"` — I
- * built this without seeing that file directly, so it's self-contained
- * for now. Same for the env var name below; FILE_STRUCTURE.md confirms
- * SUPABASE_SERVICE_ROLE_KEY but not the URL var name, so I guessed the
- * Next.js-conventional NEXT_PUBLIC_SUPABASE_URL.
- */
-function getServiceClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } }
-  );
-}
+// Queries run as the signed-in user, so Postgres row-level security returns
+// only that user's rows (events, notes, journal, ...). If nobody is signed in
+// the queries simply return nothing.
 
-// Single-user app based in Bengaluru — "today" should mean today in this
-// timezone, not the server's (Vercel defaults to UTC). Change if needed.
+// "Today" is computed in this timezone rather than the server's (Workers run in
+// UTC). It is fixed for all users for now — see "Known limitations" in BUILD_SPEC.md.
 export const APP_TIMEZONE = "Asia/Kolkata";
 
 function todayInAppTZ(): string {
@@ -48,7 +35,7 @@ export type DashboardStats = {
 
 export async function getTodayEvents(): Promise<TodayEvent[]> {
   try {
-    const supabase = getServiceClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("events")
       .select("id, title, start_time, end_time")
@@ -65,7 +52,7 @@ export async function getTodayEvents(): Promise<TodayEvent[]> {
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const supabase = getServiceClient();
+  const supabase = await createSupabaseServerClient();
   const today = todayInAppTZ();
 
   const [notes, subjects, pomodoro, journal] = await Promise.allSettled([

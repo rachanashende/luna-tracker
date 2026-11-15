@@ -14,7 +14,16 @@ Check off `[ ]` → `[x]` as modules get finished so it's easy to see progress a
 - **AI**: Gemini API (`gemini-2.5-flash` or `flash-lite`), free tier, key from aistudio.google.com
 - **Styling**: Tailwind CSS
 - **Hosting**: Cloudflare Workers (app, free plan) + Supabase (DB/storage). *Migrating from Vercel as of Nov 2026 — see "Hosting migration" below.*
-- **Auth**: single shared password → server-side check → httpOnly session cookie (no full user accounts)
+- **Auth**: multi-user — Supabase Auth (email + password, cookie sessions via `@supabase/ssr`), sign-up gated by an invite code (`INVITE_CODE` secret), per-user data isolation with `user_id` + Postgres RLS (see "Multi-user" below)
+
+### Multi-user (added Nov 2026)
+
+- Supabase Auth, email + password; `/signup` requires `INVITE_CODE` (Worker secret, compared in constant time; sign-up is closed if unset).
+- `supabase/005_multi_user.sql`: `user_id uuid default auth.uid()` on events, event_exceptions, notes, note_folders, journal, pomodoro_logs, subjects, study_plan, with RLS "own rows" policies (child tables also check the parent row's owner). Tested locally on Postgres: other users can't read, update, delete, insert as, or attach to someone else's rows; anon sees nothing.
+- `supabase/006_claim_existing_data.sql`: one-time script assigning pre-existing rows to the owner's account.
+- API routes and the dashboard use the per-request, RLS-bound Supabase client (`lib/supabase-server.ts`). The service-role client is used only to sign storage URLs after ownership is verified. New upload paths are `<userId>/<folderId>/<uuid>-<name>`.
+- Setup: apply 005, turn off "Confirm email" in Supabase, sign up, run 006 with your email.
+- **Known limitations:** dashboard "today" is fixed to `Asia/Kolkata`; invite-code guesses aren't rate-limited; Workers Free 10 ms CPU limit; `NEXT_PUBLIC_*` must be Cloudflare build variables.
 
 ### Hosting migration: Vercel → Cloudflare Workers (started Nov 2026)
 
@@ -27,7 +36,7 @@ Check off `[ ]` → `[x]` as modules get finished so it's easy to see progress a
 2. ~~Run `npx vinext init --platform cloudflare`~~ — done with no CDN cache, no data cache, and no image optimization (Luna is single-user and doesn't use `next/image`). Added `vite.config.ts`, `cloudflare.config.ts`, the `*:vinext` scripts, and `"type": "module"`.
 3. ~~Test locally~~ — `npm run build:vinext` passes; `npm run start:vinext` serves the Worker and `proxy.ts` redirects work.
 4. Deploy with `npm run deploy:vinext` (builds, then deploys; asks you to sign in to Cloudflare). Auto-deploy from GitHub can be connected afterwards.
-5. Set env vars in Cloudflare: `APP_PASSWORD`, `SESSION_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and (Module 7) `GEMINI_API_KEY`. `NEXT_PUBLIC_` vars must also be build variables.
+5. Set env vars in Cloudflare: `INVITE_CODE` (secret), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and (Module 7) `GEMINI_API_KEY`. `NEXT_PUBLIC_` vars must also be build variables.
 6. Run the checklist below against the new `*.workers.dev` URL, then update the live URLs in the docs and delete the Vercel project.
 
 **Workers Free limits to watch:** 100,000 requests/day; **10 ms CPU time per request** (waiting on Supabase/Gemini doesn't count); 50 subrequests per invocation; 128 MB memory. The CPU cap is the main risk for server-rendered pages (Dashboard, Calendar's `lib/recurrence.ts`, Journal stats) and for server-side PDF parsing in Module 7.
@@ -41,7 +50,7 @@ Check off `[ ]` → `[x]` as modules get finished so it's easy to see progress a
 - [ ] Journal: save an entry, see it in the calendar and list
 - [ ] Theme toggle persists, no flash of wrong theme
 
-**Not affected by the move:** Supabase (DB, storage, RLS, migrations), the password gate logic, and the browser → Supabase direct-upload flow for notes.
+**Not affected by the move:** Supabase (DB, storage, RLS, migrations), and the browser → Supabase direct-upload flow for notes.
 
 ### Color palette (finalized)
 
@@ -105,13 +114,13 @@ study_plan    (id, subject_id, date, topic, status, source)
 **Build:**
 - Next.js project scaffolded, Tailwind configured with the palette above (light + dark mode)
 - Supabase project connected, base schema (section 0) migrated
-- `/login` page: password field → server action checks against env var → sets httpOnly session cookie
-- Middleware redirecting unauthenticated requests to `/login`
+- `/login` page (email + password) and `/signup` page (invite code + email + password) via Supabase Auth; superseded the original shared-password gate
+- `proxy.ts` refreshing the Supabase session and redirecting unauthenticated requests to `/login`
 - App shell: sidebar/top nav with links to Dashboard, Calendar, Notes, Journal, Pomodoro, Study
 - Dark/light mode toggle
 - Deployed (first to Vercel, env vars set: Supabase URL/key, session secret; now migrating to Cloudflare Workers — see "Hosting migration")
 
-**Definition of done:** You can visit the live URL, get redirected to login, enter the password, and land on an empty dashboard shell with working nav and theme toggle.
+**Definition of done:** You can visit the live URL, get redirected to login, sign in, and land on an empty dashboard shell with working nav and theme toggle.
 
 **Prompt to start this module in a new chat:**
 > "I'm building Module 1 (Foundation) of my personal daily tracker. Here's the build spec: [paste this file]. Let's scaffold the Next.js + Supabase project, set up the password gate, and apply the color palette."

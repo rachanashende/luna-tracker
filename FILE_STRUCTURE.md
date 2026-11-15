@@ -4,13 +4,15 @@ This matches the `daily-tracker-skeleton.zip` folder exactly. Each entry notes w
 
 ```
 daily-tracker/
-├── .env.example                  # env vars needed (Supabase, Gemini, app password, session secret)
+├── .env.example                  # env vars needed (Supabase, Gemini, invite code)
 ├── .gitignore
 ├── package.json
 ├── tsconfig.json
 ├── tailwind.config.ts            # Module 1 — palette gets mapped in here
 ├── README.md
 ├── PROJECT_PLAN.md               # original project plan
+├── proxy.ts                      # multi-user — session refresh + auth redirects
+├── supabase/                     # schema.sql, 002–004 module migrations, 005_multi_user.sql, 006_claim_existing_data.sql
 ├── BUILD_SPEC.md                 # module-by-module build spec
 │
 ├── app/
@@ -19,7 +21,12 @@ daily-tracker/
 │   ├── globals.css               # Module 1 — Tailwind + color palette variables
 │   │
 │   ├── login/
-│   │   └── page.tsx              # Module 1 — password gate
+│   │   ├── page.tsx              # Module 1 — email + password login
+│   │   ├── login-form.tsx
+│   │   └── actions.ts            # login / signup / logout server actions
+│   ├── signup/
+│   │   ├── page.tsx              # invite-code sign-up
+│   │   └── signup-form.tsx
 │   │
 │   ├── dashboard/
 │   │   └── page.tsx              # Module 2 — overview cards
@@ -47,7 +54,8 @@ daily-tracker/
 │       └── study-plan/route.ts   # Module 7 — parses syllabus, calls Gemini, saves plan
 │
 ├── lib/
-│   ├── supabase.ts                # Module 1 — Supabase client setup
+│   ├── supabase.ts                # Module 1 — Supabase browser client
+│   ├── supabase-server.ts         # multi-user — per-request RLS-bound server client, auth helpers
 │   └── gemini.ts                  # Module 7 — server-side Gemini API helper
 │
 ├── components/
