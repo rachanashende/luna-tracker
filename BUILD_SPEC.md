@@ -33,7 +33,7 @@ Check off `[ ]` → `[x]` as modules get finished so it's easy to see progress a
 
 **Steps:**
 1. ~~Bump `react` and `react-dom` to 19.3.1~~ — done (vinext requires `^19.3.1`; the repo was on 19.2.8).
-2. ~~Run `npx vinext init --platform cloudflare`~~ — done with no CDN cache, no data cache, and no image optimization (Luna is single-user and doesn't use `next/image`). Added `vite.config.ts`, `cloudflare.config.ts`, the `*:vinext` scripts, and `"type": "module"`.
+2. ~~Run `npx vinext init --platform cloudflare`~~ — done with no CDN cache, no data cache, and no image optimization (Luna doesn't use `next/image`). Added `vite.config.ts`, `cloudflare.config.ts`, the `*:vinext` scripts, and `"type": "module"`.
 3. ~~Test locally~~ — `npm run build:vinext` passes; `npm run start:vinext` serves the Worker and `proxy.ts` redirects work.
 4. Deploy with `npm run deploy:vinext` (builds, then deploys; asks you to sign in to Cloudflare). Auto-deploy from GitHub can be connected afterwards.
 5. Set env vars in Cloudflare: `INVITE_CODE` (secret), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and (Module 7) `GEMINI_API_KEY`. `NEXT_PUBLIC_` vars must also be build variables.
@@ -100,14 +100,14 @@ study_plan    (id, subject_id, date, topic, status, source)
 - [ ] Gemini API key (aistudio.google.com/app/apikey)
 - [ ] Cloudflare account (Workers, free plan) — replaces the Vercel account; needed for the hosting migration
 - [x] ~~Vercel account~~ — original host, being retired after the Cloudflare cutover
-- [ ] Password chosen for the login gate
+- [x] Invite code chosen for sign-up (`INVITE_CODE`; originally a shared password, replaced by multi-user auth)
 
 ---
 
 ## Module 1 — Foundation
 **Status:** [x] done
 
-**Goal:** Working, deployed, password-locked shell with theme applied. Nothing functional yet beyond navigation.
+**Goal:** Working, deployed, login-protected shell with theme applied. Nothing functional yet beyond navigation.
 
 **Depends on:** nothing (start here)
 
@@ -123,7 +123,7 @@ study_plan    (id, subject_id, date, topic, status, source)
 **Definition of done:** You can visit the live URL, get redirected to login, sign in, and land on an empty dashboard shell with working nav and theme toggle.
 
 **Prompt to start this module in a new chat:**
-> "I'm building Module 1 (Foundation) of my personal daily tracker. Here's the build spec: [paste this file]. Let's scaffold the Next.js + Supabase project, set up the password gate, and apply the color palette."
+> "I'm building Module 1 (Foundation) of my personal daily tracker. Here's the build spec: [paste this file]. Let's scaffold the Next.js + Supabase project, set up login (Supabase Auth), and apply the color palette."
 
 ---
 
