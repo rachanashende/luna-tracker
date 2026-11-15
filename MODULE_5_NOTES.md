@@ -70,7 +70,8 @@ than reusing Module 4's modal, so Module 5 doesn't depend on Module 4's files be
    pause after inactivity). While it's paused the whole live app's data calls fail, not just
    Journal. Restore it from the Supabase dashboard (or ask me to), then apply
    `supabase/004_journal.sql` in the SQL editor.
-2. Files are pushed to `main`; Vercel redeploys automatically.
+2. Files are pushed to `main`; Cloudflare redeploys automatically once the repo is connected
+   (hosting moved from Vercel — see `BUILD_SPEC.md` → "Hosting migration").
 
 ## Known limitations
 

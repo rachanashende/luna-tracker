@@ -10,11 +10,11 @@ A personal, single-user full-stack web app, deployed on a real URL, password-gat
 
 | Layer | Choice | Why |
 |---|---|---|
-| Frontend + Backend | **Next.js** (App Router, TypeScript) | One codebase, API routes double as backend, deploys natively to Vercel |
+| Frontend + Backend | **Next.js** (App Router, TypeScript) | One codebase, API routes double as backend, runs on Cloudflare Workers (originally planned for Vercel) |
 | Database + Auth storage + File storage | **Supabase** (Postgres + Storage) | Free tier, generous for single-user, gives you a real Postgres DB and file storage for uploaded syllabus PDFs |
 | AI (study plan generation) | **Gemini API** (`gemini-2.5-flash` or `flash-lite`), via free API key from Google AI Studio | Free tier (no card needed), plenty of headroom for personal use — you'll generate maybe a handful of plans a week, nowhere near the daily request cap |
 | Styling | **Tailwind CSS** | Fast to theme once we pick your color palette |
-| Hosting | **Vercel** (app) + **Supabase** (DB/storage) | Both have permanent free tiers sufficient for one user |
+| Hosting | **Cloudflare Workers** (app, via vinext) + **Supabase** (DB/storage) | Both have permanent free tiers sufficient for one user |
 | Auth | **Single shared password** (not full user accounts) | It's just you — a password gate (env-var secret, checked server-side, sets an httpOnly session cookie) is simpler than real auth and still keeps strangers out |
 
 ## 3. Feature breakdown by phase
@@ -85,7 +85,7 @@ study_plan    (id, subject_id, date, topic, status, source: 'ai'|'manual')
 
 - A Supabase account (free) — I'll walk you through creating the project
 - A Gemini API key from [aistudio.google.com](https://aistudio.google.com/app/apikey) (free, no card, ~1 minute) — I'll walk you through this too
-- A Vercel account (free) for deployment
+- A Cloudflare account (free) for deployment
 - Your chosen color palette (send me the options you're considering)
 - The password you want for the login gate
 
