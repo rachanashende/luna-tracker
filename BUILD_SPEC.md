@@ -27,7 +27,9 @@ Check off `[ ]` → `[x]` as modules get finished so it's easy to see progress a
 
 ### Hosting migration: Vercel → Cloudflare Workers (started Nov 2026)
 
-**Status:** code migration done and tested locally (vinext build passes; the built Worker redirects signed-out requests to `/login`). **Not yet deployed to Cloudflare** — remaining: first deploy, env vars, and the checklist below. (Vercel project has been deleted, so the app is offline until this is deployed.)
+**Status:** **deployed and live at https://luna-tracker.rachana.workers.dev** (Nov 2026). Multi-user auth works end to end (sign-up with invite code, login). Remaining: tick the verification checklist below by hand. (The Vercel project has been deleted.)
+
+**Deploy setup (lives in the Cloudflare dashboard, not git):** Workers Builds is connected to `main`. Build command `npm run build:vinext`. Deploy command writes the two secrets from build variables into a temp file and runs `npx cf deploy --prebuilt --secrets-file /tmp/luna.env` (the dashboard's Runtime variables form wouldn't save, and the `cf` CLI refuses to deploy until the `bindings.secret()` values exist). Build variables needed: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `INVITE_CODE`, `SUPABASE_SERVICE_ROLE_KEY`. The account's workers.dev subdomain was renamed to `rachana`.
 
 **Approach:** use **vinext**, which Cloudflare now recommends as the default way to run Next.js on Workers. `npx vinext check` on this repo reports 100% compatible (including `proxy.ts`). The OpenNext adapter (`@opennextjs/cloudflare`) is the fallback, but its docs say Node.js middleware isn't supported yet, which Next.js 16's `proxy.ts` is likely to hit.
 
